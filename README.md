@@ -7,5 +7,5 @@ A very opinionated kind of lisp. Just fun
 ### Platforms
 Currently tested on MacOS.
 
-### Install
+### Build
 1. cc -std=c99 -Wall prompt.c -ledit -o prompt
