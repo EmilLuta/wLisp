@@ -1,5 +1,5 @@
 # wLisp
-A very opinionated kind of lisp. Just fun
+A very opinionated kind of lisp. For fun in the evenings.
 
 ### Dependencies
 1. editline
@@ -8,4 +8,7 @@ A very opinionated kind of lisp. Just fun
 Currently tested on MacOS.
 
 ### Build
-1. cc -std=c99 -Wall prompt.c -ledit -o prompt
+1. cc -std=c99 -Wall repl.c mpc.c -ledit -lm -o wLisp
+
+### Usage
+./wLisp
