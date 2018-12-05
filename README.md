@@ -8,7 +8,7 @@ A very opinionated kind of lisp. For fun in the evenings.
 Currently tested on MacOS.
 
 ### Build
-1. cc -std=c99 -Wall repl.c mpc.c -ledit -lm -o wLisp
+$`cc -std=c99 -Wall repl.c mpc.c -ledit -lm -o wLisp`
 
 ### Usage
-./wLisp
+`./wLisp`
