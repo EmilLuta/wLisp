@@ -151,7 +151,7 @@ lval* builtin_op(lval* a, char* op) {
     for (int i = 0; i < a->count; i++) {
         if (a->cell[i]->type != LVAL_NUM) {
             lval_del(a);
-            return lval_err("Cannot operate on non-numbers!");
+            return lval_err("Cannot operate on non-numbers");
         }
     }
 
@@ -254,7 +254,7 @@ lval* lval_read(mpc_ast_t* t) {
         if (strcmp(t->children[i]->contents, ")") == 0) {
             continue;
         }
-        if (strcmp(t->children[i]->contents, "regex") == 0) {
+        if (strcmp(t->children[i]->tag, "regex") == 0) {
             continue;
         }
         x = lval_add(x, lval_read(t->children[i]));
