@@ -1,10 +1,7 @@
-/* #include <stdio.h> */
-/* #include <stdlib.h> */
-
 #include "mpc.h"
 
 #ifdef _WIN32
-/* #include <string.h> */
+#include <string.h>
 
 static char buffer[2048];
 
@@ -282,6 +279,9 @@ int main(int argc, char** argv) {
 
     while (1) {
         char* input = readline("> ");
+        if (input == NULL) {
+            exit(0);
+        }
         add_history(input);
         mpc_result_t r;
         if (mpc_parse("<stdin>", input, wLisp, &r)) {
