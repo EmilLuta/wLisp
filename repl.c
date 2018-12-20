@@ -35,6 +35,18 @@ typedef struct lenv lenv;
 
 enum {LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR};
 
+char* ltype_name(int t) {
+    switch(t) {
+        case LVAL_FUN: return "Function";
+        case LVAL_NUM: return "Number";
+        case LVAL_ERR: return "Error";
+        case LVAL_SYM: return "Symbol";
+        case LVAL_SEXPR: return "S-Expression";
+        case LVAL_QEXPR: return "Q-Expression";
+        default: return "Unknown";
+    }
+}
+
 typedef lval*(*lbuiltin)(lenv*, lval*);
 
 struct lval {
@@ -61,11 +73,17 @@ lval* lval_num(long x) {
     return v;
 }
 
-lval* lval_err(char* m) {
+lval* lval_err(char* fmt, ...) {
     lval* v = malloc(sizeof(lval));
     v->type = LVAL_ERR;
-    v->err = malloc(strlen(m) + 1);
-    strcpy(v->err, m);
+
+    va_list va;
+    va_start(va, fmt);
+
+    v->err = malloc(1024);
+    vsnprintf(v->err, 1023, fmt, va);
+    v->err = realloc(v->err, strlen(v->err) + 1);
+    va_end(va);
     return v;
 }
 
@@ -245,7 +263,7 @@ lval* lenv_get(lenv* e, lval* k) {
             return lval_copy(e->vals[i]);
         }
     }
-    return lval_err("Unbound symbol");
+    return lval_err("Unbound symbol '%s'", k->sym);
 }
 
 void lenv_put(lenv* e, lval* k, lval* v) {
@@ -302,14 +320,20 @@ lval* builtin_op(lenv* e, lval* a, char* op) {
     return x;
 }
 
-#define LASSERT(args, cond, err) \
-    if (!(cond)) { lval_del(args); return lval_err(err); }
+#define LASSERT(args, cond, fmt, ...) \
+    if (!(cond)) { \
+        lval* err = lval_err(fmt, ##__VA_ARGS__); \
+        lval_del(args); \
+        return err; \
+    }
 
 lval* builtin_head(lenv* e, lval* a) {
     LASSERT(a, a->count == 1,
-        "Function 'head' passed too many arguments");
+        "Function 'head' passed too many arguments. Got %i, Expected %i.",
+        a->count, 1);
     LASSERT(a, a->cell[0]->type == LVAL_QEXPR,
-        "Function 'head' passed incorrect type");
+        "Function 'head' passed incorrect type for argument 0. Got %s, Expected %s.",
+        ltype_name(a->cell[0]->type), ltype_name(LVAL_QEXPR));
     LASSERT(a, a->cell[0]->count != 0,
         "Function 'head' passed {}");
     lval* v = lval_take(a, 0);
