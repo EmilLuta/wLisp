@@ -33,7 +33,7 @@ struct lenv;
 typedef struct lval lval;
 typedef struct lenv lenv;
 
-enum {LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR};
+enum {LVAL_NUM, LVAL_ERR, LVAL_SYM, LVAL_STR, LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR};
 
 char* ltype_name(int t) {
     switch(t) {
@@ -43,6 +43,7 @@ char* ltype_name(int t) {
         case LVAL_SYM: return "Symbol";
         case LVAL_SEXPR: return "S-Expression";
         case LVAL_QEXPR: return "Q-Expression";
+        case LVAL_STR: return "String";
         default: return "Unknown";
     }
 }
@@ -54,6 +55,7 @@ struct lval {
     long num;
     char* err;
     char* sym;
+    char* str;
     lbuiltin builtin;
     lenv* env;
     lval* formals;
@@ -74,6 +76,14 @@ lval* lval_num(long x) {
     lval* v = malloc(sizeof(lval));
     v->type = LVAL_NUM;
     v->num = x;
+    return v;
+}
+
+lval* lval_str(char* s) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_STR;
+    v->str = malloc(strlen(s) + 1);
+    strcpy(v->str, s);
     return v;
 }
 
@@ -166,6 +176,10 @@ void lval_del(lval* v) {
                 lval_del(v->cell[i]);
             }
             free(v->cell);
+            break;
+        case LVAL_STR:
+            free(v->str);
+            break;
     }
     free(v);
 }
@@ -197,6 +211,14 @@ lval* lval_join(lval* x, lval* y) {
     }
     lval_del(y);
     return x;
+}
+
+void lval_print_str(lval* v) {
+    char* escaped = malloc(strlen(v->str) + 1);
+    strcpy(escaped, v->str);
+    escaped = mpcf_escape(escaped);
+    printf("\"%s\"", escaped);
+    free(escaped);
 }
 
 void lval_print(lval* v);
@@ -239,6 +261,10 @@ void lval_print(lval* v) {
             break;
         case LVAL_QEXPR:
             lval_expr_print(v, '{', '}');
+            break;
+        case LVAL_STR:
+            lval_print_str(v);
+            break;
     }
 }
 
@@ -295,6 +321,10 @@ lval* lval_copy(lval* v) {
             for (int i = 0; i < x->count; i++) {
                 x->cell[i] = lval_copy(v->cell[i]);
             }
+            break;
+        case LVAL_STR:
+            x->str = malloc(strlen(v->str) + 1);
+            strcpy(x->str, v->str);
             break;
     }
     return x;
@@ -439,6 +469,8 @@ int lval_eq(lval* x, lval* y) {
                 }
             }
             return 1;
+        case LVAL_STR:
+            return (strcmp(x->str, y->str) == 0);
         break;
     }
     return 0;
@@ -807,9 +839,22 @@ lval* lval_read_num(mpc_ast_t* t) {
         lval_num(x) : lval_err("Invalid number");
 }
 
+lval* lval_read_str(mpc_ast_t* t) {
+    t->contents[strlen(t->contents) - 1] = '\0';
+    char* unescaped = malloc(strlen(t->contents + 1) + 1);
+    strcpy(unescaped, t->contents + 1);
+    unescaped = mpcf_unescape(unescaped);
+    lval* str = lval_str(unescaped);
+    free(unescaped);
+    return str;
+}
+
 lval* lval_read(mpc_ast_t* t) {
     if (strstr(t->tag, "number")) {
         return lval_read_num(t);
+    }
+    if (strstr(t->tag, "string")) {
+        return lval_read_str(t);
     }
     if (strstr(t->tag, "symbol")) {
         return lval_sym(t->contents);
@@ -849,6 +894,7 @@ lval* lval_read(mpc_ast_t* t) {
 
 int main(int argc, char** argv) {
     mpc_parser_t* Number = mpc_new("number");
+    mpc_parser_t* String = mpc_new("string");
     mpc_parser_t* Symbol = mpc_new("symbol");
     mpc_parser_t* Sexpr = mpc_new("sexpr");
     mpc_parser_t* Qexpr = mpc_new("qexpr");
@@ -858,14 +904,15 @@ int main(int argc, char** argv) {
     mpca_lang(MPCA_LANG_DEFAULT,
         "                                                                   \
             number : /-?[0-9]+/ ;                                           \
+            string : /\"(\\\\.|[^\"])*\"/ ;                                 \
             symbol : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;                     \
             sexpr : '(' <expr>* ')' ;                                       \
             qexpr : '{' <expr>* '}' ;                                       \
-            expr : <number> | <symbol> | <sexpr> | <qexpr> ;                \
+            expr : <number> | <string> | <symbol> | <sexpr> | <qexpr> ;     \
             wLisp : /^/ <expr>* /$/ ;                                       \
         ",
-        Number, Symbol, Sexpr, Qexpr, Expr, wLisp);
-    puts("wLisp v0.0.4");
+        Number, String, Symbol, Sexpr, Qexpr, Expr, wLisp);
+    puts("wLisp v0.0.5");
 
     lenv* e = lenv_new();
     lenv_add_builtins(e);
@@ -892,6 +939,6 @@ int main(int argc, char** argv) {
 
     lenv_del(e);
 
-    mpc_cleanup(6, Number, Symbol, Sexpr, Qexpr, Expr, wLisp);
+    mpc_cleanup(7, Number, String, Symbol, Sexpr, Qexpr, Expr, wLisp);
     return 0;
 }
